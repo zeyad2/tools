@@ -1,0 +1,35 @@
+<subsystem xmlns="urn:jboss:domain:datasources:6.0">
+    <datasources>
+        <!-- MySQL Datasource -->
+        <datasource jndi-name="java:jboss/datasources/MiniSocialMySQLDS" pool-name="MySQLPool" enabled="true" use-java-context="true">
+            <connection-url>jdbc:mysql://localhost:3306/minisocial?useSSL=false&amp;allowPublicKeyRetrieval=true&amp;serverTimezone=UTC</connection-url>
+            <driver>mysql</driver>
+            <security>
+                <user-name>minisocial_user</user-name>
+                <password>StrongPassword123!</password>
+            </security>
+            <pool>
+                <min-pool-size>10</min-pool-size>
+                <max-pool-size>100</max-pool-size>
+                <prefill>true</prefill>
+            </pool>
+            <validation>
+                <validate-on-match>true</validate-on-match>
+                <background-validation>false</background-validation>
+                <valid-connection-checker class-name="org.jboss.jca.adapters.jdbc.extensions.mysql.MySQLValidConnectionChecker"/>
+                <exception-sorter class-name="org.jboss.jca.adapters.jdbc.extensions.mysql.MySQLExceptionSorter"/>
+            </validation>
+            <timeout>
+                <blocking-timeout-millis>5000</blocking-timeout-millis>
+                <idle-timeout-minutes>15</idle-timeout-minutes>
+            </timeout>
+        </datasource>
+
+        <drivers>
+            <driver name="mysql" module="com.mysql">
+                <driver-class>com.mysql.cj.jdbc.Driver</driver-class>
+                <xa-datasource-class>com.mysql.cj.jdbc.MysqlXADataSource</xa-datasource-class>
+            </driver>
+        </drivers>
+    </datasources>
+</subsystem>
