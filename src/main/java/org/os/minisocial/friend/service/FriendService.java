@@ -8,6 +8,8 @@ import org.os.minisocial.friend.dto.FriendRequestDTO;
 import org.os.minisocial.friend.dto.FriendshipDTO;
 import org.os.minisocial.friend.entity.Friendship;
 import org.os.minisocial.friend.repository.FriendRepository;
+import org.os.minisocial.notification.dto.NotificationDTO;
+import org.os.minisocial.notification.service.NotificationService;
 import org.os.minisocial.shared.dto.ProfileDTO;
 import org.os.minisocial.user.entity.User;
 import org.os.minisocial.user.service.UserService;
@@ -22,6 +24,9 @@ public class FriendService {
 
     @EJB
     private UserService userService;
+
+    @EJB
+    private NotificationService notificationService;
 
     public String sendFriendRequest(FriendRequestDTO requestDTO) {
         if (requestDTO.getRequesterEmail() == null || requestDTO.getAddresseeEmail() == null) {
@@ -40,13 +45,31 @@ public class FriendService {
         if (friendRepository.findByUsers(requester, addressee) != null) {
             return "Friendship already exists";
         }
+        // Send notification
+
 
         Friendship friendship = new Friendship();
         friendship.setRequester(requester);
         friendship.setAddressee(addressee);
         friendship.setStatus(Friendship.Status.PENDING);
-
         friendRepository.save(friendship);
+
+
+        String notificationContent = String.format(
+                "{\"requestId\":%d,\"requesterName\":\"%s\"}",
+                friendship.getId(),
+                requester.getName()
+        );
+        NotificationDTO notification = new NotificationDTO(
+                NotificationDTO.EventType.FRIEND_REQUEST,
+                requester.getEmail(),
+                addressee.getEmail(),
+                notificationContent
+        );
+
+        notificationService.sendNotification(notification);
+
+
         return "Friend request sent successfully";
     }
 

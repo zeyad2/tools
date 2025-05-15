@@ -1,9 +1,13 @@
 package org.os.minisocial.post.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.ejb.EJB;
 import jakarta.ejb.Stateless;
 import org.os.minisocial.friend.service.FriendService;
 import org.os.minisocial.group.entity.Group;
+import org.os.minisocial.notification.dto.NotificationDTO;
+import org.os.minisocial.notification.service.NotificationService;
 import org.os.minisocial.post.dto.CommentDTO;
 import org.os.minisocial.post.dto.CommentResponseDTO;
 import org.os.minisocial.post.dto.PostDTO;
@@ -22,10 +26,15 @@ import org.os.minisocial.group.repository.GroupRepository;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 @Stateless
 public class PostService {
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
+
     @EJB
     private PostRepository postRepository;
 
@@ -37,6 +46,9 @@ public class PostService {
 
     @EJB
     private GroupRepository groupRepository;
+
+    @EJB
+    private NotificationService notificationService;
 
 
     public PostResponseDTO createPost(String userEmail, PostDTO postDTO) {
@@ -158,6 +170,31 @@ public class PostService {
         comment.setPost(post);
 
         comment = commentRepository.save(comment);
+
+        String preview = commentDTO.getContent()
+                .replace("\"", "\\\"") // Escape quotes
+                .replace("\n", " ")     // Remove newlines
+                .replace("\r", " ");    // Remove carriage returns
+
+        if (preview.length() > 50) {
+            preview = preview.substring(0, 50) + "...";
+        }
+
+        String notificationContent = String.format(
+                "{\"postId\":%d,\"commentPreview\":\"%s\"}",
+                post.getId(),
+                preview
+        );
+
+        NotificationDTO notification = new NotificationDTO(
+                NotificationDTO.EventType.POST_COMMENT,
+                userEmail,
+                post.getAuthor().getEmail(),
+                notificationContent
+        );
+
+        notificationService.sendNotification(notification);
+
         return convertToDTO(comment);
     }
 
@@ -190,10 +227,24 @@ public class PostService {
             like.setPost(post);
             likeRepository.save(like);
             post.setLikeCount(post.getLikeCount() + 1);
-        }
+            if (!post.getAuthor().getEmail().equals(userEmail)) {
+                String preview = post.getContent();
+                if (preview.length() > 50) preview = preview.substring(0, 50) + "...";
 
+                NotificationDTO notification = new NotificationDTO(
+                        NotificationDTO.EventType.POST_LIKE,
+                        user.getEmail(),
+                        post.getAuthor().getEmail(),
+                        "{\"postId\":" + post.getId() + ",\"postPreview\":\"" + preview + "\"}"
+                );
+
+                notificationService.sendNotification(notification);
+            }
+        }
         post = postRepository.update(post);
         return convertToDTO(post);
+
+
     }
 
     private CommentResponseDTO convertToDTO(Comment comment) {
@@ -207,6 +258,8 @@ public class PostService {
         authorDTO.setName(comment.getAuthor().getName());
         authorDTO.setBio(comment.getAuthor().getBio());
         dto.setAuthor(authorDTO);
+
+
 
         return dto;
     }

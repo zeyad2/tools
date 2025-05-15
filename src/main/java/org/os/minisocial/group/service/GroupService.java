@@ -10,6 +10,8 @@ import org.os.minisocial.group.entity.Group;
 import org.os.minisocial.group.entity.GroupMembershipRequest;
 import org.os.minisocial.group.repository.GroupMembershipRequestRepository;
 import org.os.minisocial.group.repository.GroupRepository;
+import org.os.minisocial.notification.dto.NotificationDTO;
+import org.os.minisocial.notification.service.NotificationService;
 import org.os.minisocial.shared.dto.UserDTO;
 import org.os.minisocial.user.entity.User;
 import org.os.minisocial.user.service.UserService;
@@ -29,6 +31,9 @@ public class GroupService {
 
     @EJB
     private UserService userService;
+
+    @EJB
+    private NotificationService notificationService;
 
     public GroupDTO createGroup(String userEmail, CreateGroupDTO createGroupDTO) {
         User creator = userService.getUserByEmail(userEmail)
@@ -93,10 +98,28 @@ public class GroupService {
         }
 
         if (group.getType() == Group.GroupType.OPEN) {
-            group.getMembers().add(user);
-            groupRepository.update(group);
-            return null; // No request needed for open groups
-        } else {
+            if (!group.getCreator().equals(user)) {
+                String content = String.format(
+                        "{\"groupId\":%d,\"groupName\":\"%s\",\"newMember\":\"%s\"}",
+                        group.getId(),
+                        group.getName(),
+                        user.getName()
+                );
+
+                NotificationDTO notification = new NotificationDTO(
+                        NotificationDTO.EventType.GROUP_JOIN,
+                        user.getEmail(), // source - who joined
+                        group.getCreator().getEmail(), // target - group admin
+                        content
+                );
+
+                notificationService.sendNotification(notification);
+            }
+
+            return null;
+
+        } else
+        {
             // For closed groups, create a membership request
             GroupMembershipRequest existingRequest = membershipRequestRepository
                     .findByUserAndGroup(user.getId(), groupId);
@@ -111,7 +134,12 @@ public class GroupService {
             request.setStatus(GroupMembershipRequest.RequestStatus.PENDING);
 
             request = membershipRequestRepository.save(request);
+
+
+
             return convertToRequestDTO(request);
+
+
         }
     }
 

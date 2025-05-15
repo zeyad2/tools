@@ -4,6 +4,8 @@ import org.os.minisocial.user.entity.User;
 import jakarta.ejb.Stateless;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+
+import java.util.List;
 import java.util.Optional;
 
 @Stateless
@@ -21,6 +23,13 @@ public class UserRepository {
             return Optional.empty();
         }
     }
+    // In UserRepository.java
+    public List<User> searchByNameOrEmail(String query) {
+        return em.createQuery("SELECT u FROM User u WHERE LOWER(u.name) LIKE LOWER(:query) OR LOWER(u.email) LIKE LOWER(:query)", User.class)
+                .setParameter("query", "%" + query + "%")
+                .getResultList();
+    }
+
 
     public void save(User user) {
         em.persist(user);

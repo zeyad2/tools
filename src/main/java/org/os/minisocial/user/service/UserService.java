@@ -6,6 +6,8 @@ import org.os.minisocial.user.repository.UserRepository;
 import jakarta.ejb.Stateless;
 import jakarta.inject.Inject;
 import jakarta.security.enterprise.identitystore.PasswordHash;
+
+import java.util.List;
 import java.util.Optional;
 
 @Stateless
@@ -38,6 +40,11 @@ public class UserService {
 
     public Optional<User> getUserByEmail(String email) {
         return userRepository.findByEmail(email);
+    }
+
+    // In UserService.java
+    public List<User> searchUsers(String query) {
+        return userRepository.searchByNameOrEmail(query);
     }
 
 
